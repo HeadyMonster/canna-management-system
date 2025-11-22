@@ -7,8 +7,9 @@ A comprehensive cannabis facility management platform integrating cultivation, p
 
 ## 📋 Repository Information
 
-- **GitHub Repository**: [https://github.com/chacha609/canna-management-system](https://github.com/chacha609/canna-management-system)
-- **Clone URL**: `git clone https://github.com/chacha609/canna-management-system.git`
+- **GitHub Repository**: [https://github.com/HeadyMonster/canna-management-system](https://github.com/HeadyMonster/canna-management-system)
+- **Forked from**: [https://github.com/chacha609/canna-management-system](https://github.com/chacha609/canna-management-system)
+- **Clone URL**: `git clone https://github.com/HeadyMonster/canna-management-system.git`
 
 ## 🌿 Features
 
@@ -38,7 +39,7 @@ A comprehensive cannabis facility management platform integrating cultivation, p
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/chacha609/canna-management-system.git
+   git clone https://github.com/HeadyMonster/canna-management-system.git
    cd canna-management-system
    ```
 
