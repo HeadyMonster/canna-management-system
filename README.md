@@ -215,6 +215,39 @@ This is a **production-ready** cannabis management system with:
 - **Comprehensive API** covering all major cannabis operations
 - **Security features** including JWT authentication and RBAC
 
+## 🔄 Recent Updates (Latest Fork)
+
+### Integration & Bug Fixes - January 2025
+
+This fork includes comprehensive fixes to ensure all modules are fully integrated and functional:
+
+- ✅ **Fixed Reports.js** - Resolved "reports.filter is not a function" error
+- ✅ **Full CRUD Operations** - All modules (Strains, Batches, Plants, Rooms, Tasks, Inventory, Users) now support Create, Read, Update, Delete
+- ✅ **Missing Endpoints Added** - Added GET by ID endpoints for all modules
+- ✅ **In-Memory Data Storage** - Implemented persistent storage for development
+- ✅ **Response Format Standardization** - Fixed all API responses to match frontend expectations
+- ✅ **Frontend Setup** - Created missing `public/index.html` and configuration files
+
+**See [CHANGELOG.md](./CHANGELOG.md) for detailed changes.**
+
+### Quick Start (Development Mode)
+
+For quick development/testing without database setup:
+
+```bash
+# Terminal 1: Start backend mock server
+node server/simple-server.js
+
+# Terminal 2: Start frontend
+cd client
+npm start
+```
+
+- Backend: `http://localhost:3001`
+- Frontend: `http://localhost:3002`
+
+All modules are now fully functional with in-memory data storage!
+
 ## 🤝 Contributing
 
 1. Fork the repository

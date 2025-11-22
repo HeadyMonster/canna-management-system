@@ -24,6 +24,7 @@ import {
   Trash2
 } from 'lucide-react';
 import { LineChart, BarChart, PieChart, ChartContainer } from '../components/charts';
+import { apiService, endpoints } from '../services/api';
 
 const Reports = () => {
   const [reports, setReports] = useState([]);
@@ -43,25 +44,24 @@ const Reports = () => {
     try {
       setLoading(true);
       const [reportsRes, templatesRes, schedulesRes, analyticsRes] = await Promise.all([
-        fetch('/api/reports'),
-        fetch('/api/reports/templates'),
-        fetch('/api/reports/schedules'),
-        fetch('/api/reports/analytics')
+        apiService.get('/reports'),
+        apiService.get('/reports/templates'),
+        apiService.get('/reports/schedules'),
+        apiService.get('/reports/analytics')
       ]);
 
-      const [reportsData, templatesData, schedulesData, analyticsData] = await Promise.all([
-        reportsRes.json(),
-        templatesRes.json(),
-        schedulesRes.json(),
-        analyticsRes.json()
-      ]);
-
-      setReports(reportsData.data || []);
-      setTemplates(templatesData.data || []);
-      setSchedules(schedulesData.data || []);
-      setAnalytics(analyticsData.data || {});
+      // apiService.get() returns response.data, so we need to extract the actual data array
+      setReports(Array.isArray(reportsRes?.data) ? reportsRes.data : (Array.isArray(reportsRes) ? reportsRes : []));
+      setTemplates(Array.isArray(templatesRes?.data) ? templatesRes.data : (Array.isArray(templatesRes) ? templatesRes : []));
+      setSchedules(Array.isArray(schedulesRes?.data) ? schedulesRes.data : (Array.isArray(schedulesRes) ? schedulesRes : []));
+      setAnalytics(analyticsRes?.data || analyticsRes || {});
     } catch (error) {
       console.error('Error fetching reports data:', error);
+      // Set defaults on error
+      setReports([]);
+      setTemplates([]);
+      setSchedules([]);
+      setAnalytics({});
     } finally {
       setLoading(false);
     }

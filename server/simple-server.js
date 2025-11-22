@@ -7,7 +7,7 @@ const PORT = process.env.PORT || 3001;
 
 // Basic middleware
 app.use(cors({
-  origin: ["http://localhost:3001", "http://localhost:3002"],
+  origin: ["http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "http://localhost:5000"],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
@@ -15,6 +15,21 @@ app.use(cors({
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Root endpoint
+app.get('/', (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: 'Cannabis Management System API',
+    version: '1.0.0',
+    endpoints: {
+      health: '/health',
+      api: '/api',
+      auth: '/api/auth',
+      dashboard: '/api/reports/dashboard'
+    }
+  });
+});
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -71,73 +86,415 @@ app.post('/api/auth/login', (req, res) => {
   });
 });
 
-// Mock data endpoints
+// In-memory data storage
+let strains = [
+  { id: 1, name: 'Blue Dream', type: 'hybrid', genetics: 'Blueberry x Haze', thc_min: 17, thc_max: 24, cbd_min: 0, cbd_max: 2, flowering_time: 60, yield_indoor: '400-500g/m²', yield_outdoor: '600g/plant', description: 'Balanced hybrid with sweet berry aroma', effects: 'Euphoric, relaxed, happy', flavors: 'Sweet, berry, earthy', medical_uses: 'Pain, depression, nausea', created_at: new Date().toISOString(), batches_count: 0 },
+  { id: 2, name: 'OG Kush', type: 'indica', genetics: 'Chemdawg x Hindu Kush', thc_min: 20, thc_max: 25, cbd_min: 0, cbd_max: 1, flowering_time: 56, yield_indoor: '350-450g/m²', yield_outdoor: '500g/plant', description: 'Classic indica with earthy pine flavor', effects: 'Relaxed, happy, sleepy', flavors: 'Earthy, pine, woody', medical_uses: 'Pain, insomnia, stress', created_at: new Date().toISOString(), batches_count: 0 }
+];
+let nextStrainId = 3;
+
+let batches = [
+  { id: 1, batch_number: 'B-2024-001', strain_id: 1, room_id: 1, plant_count: 50, stage: 'vegetative', planted_date: '2024-01-15', expected_harvest_date: '2024-04-15', notes: 'First batch of Blue Dream', created_at: new Date().toISOString() },
+  { id: 2, batch_number: 'B-2024-002', strain_id: 2, room_id: 2, plant_count: 30, stage: 'flowering', planted_date: '2024-01-10', expected_harvest_date: '2024-03-10', notes: 'OG Kush flowering batch', created_at: new Date().toISOString() }
+];
+let nextBatchId = 3;
+
+let plants = [
+  { id: 1, plant_tag: 'P001', batch_id: 1, room_id: 1, stage: 'vegetative', health_status: 'healthy', planted_date: '2024-01-15', notes: 'Healthy plant', created_at: new Date().toISOString() },
+  { id: 2, plant_tag: 'P002', batch_id: 2, room_id: 2, stage: 'flowering', health_status: 'healthy', planted_date: '2024-01-10', notes: 'Flowering well', created_at: new Date().toISOString() }
+];
+let nextPlantId = 3;
+
+let rooms = [
+  { id: 1, name: 'Veg Room 1', room_type: 'vegetative', facility_id: 1, capacity: 100, current_plants: 50, temperature: 75, humidity: 60, light_schedule: '18/6', notes: 'Primary vegetative room', created_at: new Date().toISOString() },
+  { id: 2, name: 'Flower Room 1', room_type: 'flowering', facility_id: 1, capacity: 50, current_plants: 30, temperature: 72, humidity: 50, light_schedule: '12/12', notes: 'Primary flowering room', created_at: new Date().toISOString() }
+];
+let nextRoomId = 3;
+
+let tasks = [
+  { id: 1, title: 'Water plants', status: 'pending', priority: 'high', due_date: new Date().toISOString(), assigned_to: 1, created_at: new Date().toISOString() },
+  { id: 2, title: 'Check pH levels', status: 'completed', priority: 'medium', due_date: new Date().toISOString(), assigned_to: 1, created_at: new Date().toISOString() }
+];
+let nextTaskId = 3;
+
+let inventory = [
+  { id: 1, name: 'Nutrients A', item_type: 'nutrients', category_id: 1, current_quantity: 50, unit_of_measure: 'L', unit_cost: 25.00, storage_location: 'Storage A', created_at: new Date().toISOString() },
+  { id: 2, name: 'pH Test Kit', item_type: 'testing', category_id: 2, current_quantity: 5, unit_of_measure: 'pcs', unit_cost: 15.00, storage_location: 'Storage B', created_at: new Date().toISOString() }
+];
+let nextInventoryId = 3;
+
+// Strains endpoints
 app.get('/api/strains', (req, res) => {
   res.json({
     success: true,
-    data: [
-      { id: 1, name: 'Blue Dream', type: 'Hybrid', thc: 18, cbd: 2 },
-      { id: 2, name: 'OG Kush', type: 'Indica', thc: 22, cbd: 1 }
-    ]
+    strains: strains
   });
 });
 
+app.post('/api/strains', (req, res) => {
+  const newStrain = {
+    id: nextStrainId++,
+    ...req.body,
+    created_at: new Date().toISOString(),
+    batches_count: 0
+  };
+  strains.push(newStrain);
+  res.json({
+    success: true,
+    data: newStrain
+  });
+});
+
+app.put('/api/strains/:id', (req, res) => {
+  const id = parseInt(req.params.id);
+  const index = strains.findIndex(s => s.id === id);
+  if (index === -1) {
+    return res.status(404).json({ success: false, message: 'Strain not found' });
+  }
+  strains[index] = { ...strains[index], ...req.body };
+  res.json({
+    success: true,
+    data: strains[index]
+  });
+});
+
+app.delete('/api/strains/:id', (req, res) => {
+  const id = parseInt(req.params.id);
+  const index = strains.findIndex(s => s.id === id);
+  if (index === -1) {
+    return res.status(404).json({ success: false, message: 'Strain not found' });
+  }
+  strains.splice(index, 1);
+  res.json({ success: true, message: 'Strain deleted' });
+});
+
+// Batches endpoints
 app.get('/api/batches', (req, res) => {
   res.json({
     success: true,
-    data: [
-      { id: 1, name: 'Batch 001', strain: 'Blue Dream', plantCount: 50, status: 'Vegetative' },
-      { id: 2, name: 'Batch 002', strain: 'OG Kush', plantCount: 30, status: 'Flowering' }
-    ]
+    batches: batches.map(batch => ({
+      ...batch,
+      strain: strains.find(s => s.id === batch.strain_id)?.name || 'Unknown',
+      room: rooms.find(r => r.id === batch.room_id)?.name || 'Unknown'
+    }))
   });
 });
 
+app.post('/api/batches', (req, res) => {
+  const newBatch = {
+    id: nextBatchId++,
+    ...req.body,
+    created_at: new Date().toISOString()
+  };
+  batches.push(newBatch);
+  res.json({
+    success: true,
+    data: newBatch
+  });
+});
+
+app.put('/api/batches/:id', (req, res) => {
+  const id = parseInt(req.params.id);
+  const index = batches.findIndex(b => b.id === id);
+  if (index === -1) {
+    return res.status(404).json({ success: false, message: 'Batch not found' });
+  }
+  batches[index] = { ...batches[index], ...req.body };
+  res.json({
+    success: true,
+    data: batches[index]
+  });
+});
+
+app.delete('/api/batches/:id', (req, res) => {
+  const id = parseInt(req.params.id);
+  const index = batches.findIndex(b => b.id === id);
+  if (index === -1) {
+    return res.status(404).json({ success: false, message: 'Batch not found' });
+  }
+  batches.splice(index, 1);
+  res.json({ success: true, message: 'Batch deleted' });
+});
+
+// Plants endpoints
 app.get('/api/plants', (req, res) => {
   res.json({
     success: true,
-    data: [
-      { id: 1, tag: 'P001', strain: 'Blue Dream', status: 'Vegetative', room: 'Veg Room 1' },
-      { id: 2, tag: 'P002', strain: 'OG Kush', status: 'Flowering', room: 'Flower Room 1' }
-    ]
+    plants: plants.map(plant => ({
+      ...plant,
+      strain: batches.find(b => b.id === plant.batch_id)?.strain_id ? strains.find(s => s.id === batches.find(b => b.id === plant.batch_id).strain_id)?.name : 'Unknown',
+      room: rooms.find(r => r.id === plant.room_id)?.name || 'Unknown'
+    }))
   });
 });
 
+app.post('/api/plants', (req, res) => {
+  const newPlant = {
+    id: nextPlantId++,
+    ...req.body,
+    created_at: new Date().toISOString()
+  };
+  plants.push(newPlant);
+  res.json({
+    success: true,
+    data: newPlant
+  });
+});
+
+app.put('/api/plants/:id', (req, res) => {
+  const id = parseInt(req.params.id);
+  const index = plants.findIndex(p => p.id === id);
+  if (index === -1) {
+    return res.status(404).json({ success: false, message: 'Plant not found' });
+  }
+  plants[index] = { ...plants[index], ...req.body };
+  res.json({
+    success: true,
+    data: plants[index]
+  });
+});
+
+app.delete('/api/plants/:id', (req, res) => {
+  const id = parseInt(req.params.id);
+  const index = plants.findIndex(p => p.id === id);
+  if (index === -1) {
+    return res.status(404).json({ success: false, message: 'Plant not found' });
+  }
+  plants.splice(index, 1);
+  res.json({ success: true, message: 'Plant deleted' });
+});
+
+// Rooms endpoints
 app.get('/api/rooms', (req, res) => {
   res.json({
     success: true,
-    data: [
-      { id: 1, name: 'Veg Room 1', type: 'Vegetative', capacity: 100, currentPlants: 50 },
-      { id: 2, name: 'Flower Room 1', type: 'Flowering', capacity: 50, currentPlants: 30 }
-    ]
+    rooms: rooms
   });
 });
 
+app.post('/api/rooms', (req, res) => {
+  const newRoom = {
+    id: nextRoomId++,
+    ...req.body,
+    created_at: new Date().toISOString()
+  };
+  rooms.push(newRoom);
+  res.json({
+    success: true,
+    data: newRoom
+  });
+});
+
+app.put('/api/rooms/:id', (req, res) => {
+  const id = parseInt(req.params.id);
+  const index = rooms.findIndex(r => r.id === id);
+  if (index === -1) {
+    return res.status(404).json({ success: false, message: 'Room not found' });
+  }
+  rooms[index] = { ...rooms[index], ...req.body };
+  res.json({
+    success: true,
+    data: rooms[index]
+  });
+});
+
+app.delete('/api/rooms/:id', (req, res) => {
+  const id = parseInt(req.params.id);
+  const index = rooms.findIndex(r => r.id === id);
+  if (index === -1) {
+    return res.status(404).json({ success: false, message: 'Room not found' });
+  }
+  rooms.splice(index, 1);
+  res.json({ success: true, message: 'Room deleted' });
+});
+
+// Tasks endpoints
 app.get('/api/tasks', (req, res) => {
   res.json({
     success: true,
+    tasks: tasks
+  });
+});
+
+app.post('/api/tasks', (req, res) => {
+  const newTask = {
+    id: nextTaskId++,
+    ...req.body,
+    created_at: new Date().toISOString()
+  };
+  tasks.push(newTask);
+  res.json({
+    success: true,
+    data: newTask
+  });
+});
+
+app.put('/api/tasks/:id', (req, res) => {
+  const id = parseInt(req.params.id);
+  const index = tasks.findIndex(t => t.id === id);
+  if (index === -1) {
+    return res.status(404).json({ success: false, message: 'Task not found' });
+  }
+  tasks[index] = { ...tasks[index], ...req.body };
+  res.json({
+    success: true,
+    data: tasks[index]
+  });
+});
+
+app.delete('/api/tasks/:id', (req, res) => {
+  const id = parseInt(req.params.id);
+  const index = tasks.findIndex(t => t.id === id);
+  if (index === -1) {
+    return res.status(404).json({ success: false, message: 'Task not found' });
+  }
+  tasks.splice(index, 1);
+  res.json({ success: true, message: 'Task deleted' });
+});
+
+app.post('/api/tasks/:id/complete', (req, res) => {
+  const id = parseInt(req.params.id);
+  const index = tasks.findIndex(t => t.id === id);
+  if (index === -1) {
+    return res.status(404).json({ success: false, message: 'Task not found' });
+  }
+  tasks[index] = { ...tasks[index], status: 'completed', completed_at: new Date().toISOString() };
+  res.json({
+    success: true,
+    data: tasks[index]
+  });
+});
+
+app.get('/api/tasks/templates', (req, res) => {
+  res.json({
+    success: true,
     data: [
-      { id: 1, title: 'Water plants', status: 'pending', priority: 'high', dueDate: new Date() },
-      { id: 2, title: 'Check pH levels', status: 'completed', priority: 'medium', dueDate: new Date() }
+      { id: 1, name: 'Daily Watering', category: 'cultivation', description: 'Standard daily watering task', priority: 'high' },
+      { id: 2, name: 'pH Check', category: 'cultivation', description: 'Weekly pH level check', priority: 'medium' },
+      { id: 3, name: 'Nutrient Mix', category: 'cultivation', description: 'Prepare nutrient solution', priority: 'high' }
     ]
   });
 });
 
+app.get('/api/strains/:id', (req, res) => {
+  const id = parseInt(req.params.id);
+  const strain = strains.find(s => s.id === id);
+  if (!strain) {
+    return res.status(404).json({ success: false, message: 'Strain not found' });
+  }
+  res.json({
+    success: true,
+    data: strain
+  });
+});
+
+app.get('/api/batches/:id', (req, res) => {
+  const id = parseInt(req.params.id);
+  const batch = batches.find(b => b.id === id);
+  if (!batch) {
+    return res.status(404).json({ success: false, message: 'Batch not found' });
+  }
+  res.json({
+    success: true,
+    data: {
+      ...batch,
+      strain: strains.find(s => s.id === batch.strain_id)?.name || 'Unknown',
+      room: rooms.find(r => r.id === batch.room_id)?.name || 'Unknown'
+    }
+  });
+});
+
+app.get('/api/plants/:id', (req, res) => {
+  const id = parseInt(req.params.id);
+  const plant = plants.find(p => p.id === id);
+  if (!plant) {
+    return res.status(404).json({ success: false, message: 'Plant not found' });
+  }
+  res.json({
+    success: true,
+    data: {
+      ...plant,
+      strain: batches.find(b => b.id === plant.batch_id)?.strain_id ? strains.find(s => s.id === batches.find(b => b.id === plant.batch_id).strain_id)?.name : 'Unknown',
+      room: rooms.find(r => r.id === plant.room_id)?.name || 'Unknown'
+    }
+  });
+});
+
+app.get('/api/rooms/:id', (req, res) => {
+  const id = parseInt(req.params.id);
+  const room = rooms.find(r => r.id === id);
+  if (!room) {
+    return res.status(404).json({ success: false, message: 'Room not found' });
+  }
+  res.json({
+    success: true,
+    data: room
+  });
+});
+
+app.get('/api/tasks/:id', (req, res) => {
+  const id = parseInt(req.params.id);
+  const task = tasks.find(t => t.id === id);
+  if (!task) {
+    return res.status(404).json({ success: false, message: 'Task not found' });
+  }
+  res.json({
+    success: true,
+    data: task
+  });
+});
+
+// Inventory endpoints
 app.get('/api/inventory', (req, res) => {
   res.json({
     success: true,
-    data: [
-      { id: 1, name: 'Nutrients A', category: 'Nutrients', quantity: 50, unit: 'L' },
-      { id: 2, name: 'pH Test Kit', category: 'Testing', quantity: 5, unit: 'pcs' }
-    ]
+    data: inventory
   });
 });
 
+app.post('/api/inventory', (req, res) => {
+  const newItem = {
+    id: nextInventoryId++,
+    ...req.body,
+    created_at: new Date().toISOString()
+  };
+  inventory.push(newItem);
+  res.json({
+    success: true,
+    data: newItem
+  });
+});
+
+app.put('/api/inventory/:id', (req, res) => {
+  const id = parseInt(req.params.id);
+  const index = inventory.findIndex(i => i.id === id);
+  if (index === -1) {
+    return res.status(404).json({ success: false, message: 'Inventory item not found' });
+  }
+  inventory[index] = { ...inventory[index], ...req.body };
+  res.json({
+    success: true,
+    data: inventory[index]
+  });
+});
+
+app.delete('/api/inventory/:id', (req, res) => {
+  const id = parseInt(req.params.id);
+  const index = inventory.findIndex(i => i.id === id);
+  if (index === -1) {
+    return res.status(404).json({ success: false, message: 'Inventory item not found' });
+  }
+  inventory.splice(index, 1);
+  res.json({ success: true, message: 'Inventory item deleted' });
+});
+
+// Users endpoints
 app.get('/api/users', (req, res) => {
   res.json({
     success: true,
-    data: [
-      { id: 1, username: 'admin', email: 'admin@example.com', role: 'admin', status: 'active' },
-      { id: 2, username: 'grower1', email: 'grower1@example.com', role: 'grower', status: 'active' }
+    users: [
+      { id: 1, username: 'admin', email: 'admin@example.com', role: 'admin', status: 'active', firstName: 'Admin', lastName: 'User' },
+      { id: 2, username: 'grower1', email: 'grower1@example.com', role: 'grower', status: 'active', firstName: 'Grower', lastName: 'One' }
     ]
   });
 });
@@ -1552,6 +1909,233 @@ app.delete('/api/reports/:id/bookmark', (req, res) => {
   res.json({
     success: true,
     message: 'Bookmark removed successfully'
+  });
+});
+
+// Environmental endpoints
+app.get('/api/environmental/facilities/:facilityId/overview', (req, res) => {
+  res.json({
+    success: true,
+    data: {
+      facility_id: parseInt(req.params.facilityId),
+      total_rooms: 5,
+      active_alerts: 2,
+      avg_temperature: 72.5,
+      avg_humidity: 55.0,
+      avg_co2: 450,
+      rooms: [
+        { id: 1, name: 'Veg Room 1', temperature: 72, humidity: 55, co2: 450, status: 'normal' },
+        { id: 2, name: 'Flower Room 1', temperature: 75, humidity: 50, co2: 500, status: 'warning' }
+      ]
+    }
+  });
+});
+
+app.get('/api/environmental/rooms/:roomId/latest', (req, res) => {
+  res.json({
+    success: true,
+    data: {
+      room_id: parseInt(req.params.roomId),
+      timestamp: new Date().toISOString(),
+      temperature: 72.5,
+      humidity: 55.0,
+      co2: 450,
+      light_intensity: 800,
+      ph: 6.5,
+      ec: 1.8
+    }
+  });
+});
+
+app.get('/api/environmental/rooms/:roomId/trends', (req, res) => {
+  const { sensor_type, days } = req.query;
+  const dataPoints = parseInt(days) * 24;
+  const data = [];
+  
+  for (let i = 0; i < dataPoints; i++) {
+    const timestamp = new Date(Date.now() - (dataPoints - i) * 60 * 60 * 1000).toISOString();
+    let value;
+    
+    if (sensor_type === 'temperature') {
+      value = 70 + Math.random() * 5;
+    } else if (sensor_type === 'humidity') {
+      value = 50 + Math.random() * 10;
+    } else if (sensor_type === 'co2') {
+      value = 400 + Math.random() * 100;
+    } else {
+      value = 50 + Math.random() * 20;
+    }
+    
+    data.push({ timestamp, value });
+  }
+  
+  res.json({
+    success: true,
+    data
+  });
+});
+
+app.get('/api/environmental/alerts', (req, res) => {
+  res.json({
+    success: true,
+    data: [
+      {
+        id: 1,
+        facility_id: parseInt(req.query.facility_id) || 1,
+        room_id: 2,
+        room_name: 'Flower Room 1',
+        sensor_type: 'temperature',
+        severity: 'warning',
+        message: 'Temperature high in Flower Room 1 (82°F)',
+        threshold: 80,
+        current_value: 82,
+        acknowledged: false,
+        resolved: false,
+        created_at: new Date().toISOString()
+      },
+      {
+        id: 2,
+        facility_id: parseInt(req.query.facility_id) || 1,
+        room_id: 1,
+        room_name: 'Veg Room 1',
+        sensor_type: 'humidity',
+        severity: 'info',
+        message: 'Humidity levels optimal',
+        threshold: 60,
+        current_value: 55,
+        acknowledged: true,
+        resolved: false,
+        created_at: new Date().toISOString()
+      }
+    ]
+  });
+});
+
+app.get('/api/environmental/sensor-types', (req, res) => {
+  res.json({
+    success: true,
+    data: [
+      { type: 'temperature', name: 'Temperature', unit: '°F', min: 65, max: 85, optimal_min: 70, optimal_max: 75 },
+      { type: 'humidity', name: 'Humidity', unit: '%', min: 40, max: 70, optimal_min: 50, optimal_max: 60 },
+      { type: 'co2', name: 'CO2', unit: 'ppm', min: 300, max: 1000, optimal_min: 400, optimal_max: 600 },
+      { type: 'light_intensity', name: 'Light Intensity', unit: 'lux', min: 0, max: 2000, optimal_min: 500, optimal_max: 1000 },
+      { type: 'ph', name: 'pH', unit: '', min: 5.5, max: 7.5, optimal_min: 6.0, optimal_max: 6.5 },
+      { type: 'ec', name: 'EC', unit: 'mS/cm', min: 1.0, max: 3.0, optimal_min: 1.5, optimal_max: 2.0 }
+    ]
+  });
+});
+
+app.put('/api/environmental/alerts/:alertId/acknowledge', (req, res) => {
+  res.json({
+    success: true,
+    data: {
+      id: parseInt(req.params.alertId),
+      acknowledged: true,
+      acknowledged_at: new Date().toISOString()
+    }
+  });
+});
+
+app.put('/api/environmental/alerts/:alertId/resolve', (req, res) => {
+  res.json({
+    success: true,
+    data: {
+      id: parseInt(req.params.alertId),
+      resolved: true,
+      resolved_at: new Date().toISOString()
+    }
+  });
+});
+
+// Compliance/METRC endpoints (mock)
+app.post('/api/compliance/metrc/test', (req, res) => {
+  res.json({
+    success: true,
+    data: {
+      connected: true,
+      message: 'METRC connection successful'
+    }
+  });
+});
+
+app.get('/api/compliance/metrc/facilities', (req, res) => {
+  res.json({
+    success: true,
+    data: [
+      { id: 1, license_number: 'LIC-001', name: 'Main Facility', status: 'active' }
+    ]
+  });
+});
+
+app.post('/api/compliance/metrc/sync', (req, res) => {
+  res.json({
+    success: true,
+    data: {
+      sync_id: Date.now(),
+      status: 'completed',
+      synced_items: {
+        plants: 50,
+        harvests: 10,
+        packages: 25
+      },
+      synced_at: new Date().toISOString()
+    }
+  });
+});
+
+app.get('/api/compliance/metrc/sync-history', (req, res) => {
+  res.json({
+    success: true,
+    data: [
+      {
+        id: 1,
+        sync_type: 'full',
+        status: 'completed',
+        synced_items: { plants: 50, harvests: 10, packages: 25 },
+        started_at: new Date(Date.now() - 3600000).toISOString(),
+        completed_at: new Date(Date.now() - 3500000).toISOString()
+      }
+    ]
+  });
+});
+
+app.get('/api/compliance/metrc/sync-stats', (req, res) => {
+  res.json({
+    success: true,
+    data: {
+      total_syncs: 15,
+      successful_syncs: 14,
+      failed_syncs: 1,
+      last_sync: new Date().toISOString(),
+      avg_sync_duration: 45.5
+    }
+  });
+});
+
+app.get('/api/compliance/metrc/stored/plants', (req, res) => {
+  res.json({
+    success: true,
+    data: [
+      { id: 1, tag: '1A4FF0100002EE9000000123', strain: 'Blue Dream', location: 'Veg Room 1', status: 'active' }
+    ]
+  });
+});
+
+app.get('/api/compliance/metrc/stored/harvests', (req, res) => {
+  res.json({
+    success: true,
+    data: [
+      { id: 1, harvest_name: 'HARV-001', strain: 'Blue Dream', weight: 2500, harvest_date: '2025-01-15' }
+    ]
+  });
+});
+
+app.get('/api/compliance/metrc/stored/packages', (req, res) => {
+  res.json({
+    success: true,
+    data: [
+      { id: 1, package_label: '1A4FF0100002EE9000000456', product_name: 'Blue Dream Flower', quantity: 28, unit: 'g' }
+    ]
   });
 });
 
